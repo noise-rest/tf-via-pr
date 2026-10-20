@@ -19,7 +19,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Authenticate AWS
         uses: aws-actions/configure-aws-credentials@v6
@@ -33,7 +33,7 @@ jobs:
           echo "TF_PLUGIN_CACHE_DIR=$HOME/.terraform.d/plugin-cache" >> $GITHUB_ENV
 
       - name: Cache TF
-        uses: actions/cache@v4
+        uses: actions/cache@v6
         with:
           path: ~/.terraform.d/plugin-cache
           key: cache-tf-${{ runner.os }}-${{ hashFiles('path/to/directory/.terraform.lock.hcl') }}

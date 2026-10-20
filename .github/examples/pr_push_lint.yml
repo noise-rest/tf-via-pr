@@ -18,7 +18,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
 
       - name: Setup TF
         uses: hashicorp/setup-terraform@v4
@@ -38,7 +38,7 @@ jobs:
 
       - name: Setup TFLint
         if: ${{ github.event_name == 'pull_request' }}
-        uses: terraform-linters/setup-tflint@v5
+        uses: terraform-linters/setup-tflint@v6
         with:
           tflint_wrapper: true
 
