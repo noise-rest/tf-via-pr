@@ -105,7 +105,7 @@ jobs:
 
       - name: Troubleshoot TF
         if: ${{ failure() && github.event_name == 'merge_group' }}
-        uses: op5dev/prompt-ai@4cacb93e4a1e101f3a89650b31a3582321f2461d # v2.0.0
+        uses: noise-rest/prompt-ai@4cacb93e4a1e101f3a89650b31a3582321f2461d # v2.0.0
         with:
           model: openai/gpt-4.1-mini
           system-prompt: You are a helpful DevOps assistant and expert at troubleshooting Terraform errors.

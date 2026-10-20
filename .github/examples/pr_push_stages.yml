@@ -27,7 +27,7 @@ jobs:
           terraform_wrapper: false
 
       - name: Plan TF
-        uses: op5dev/tf-via-pr@v13
+        uses: noise-rest/tf-via-pr@v13
         with:
           working-directory: path/to/directory
           command: plan
@@ -48,7 +48,7 @@ jobs:
 
       - name: Init TF
         id: tf
-        uses: op5dev/tf-via-pr@v13
+        uses: noise-rest/tf-via-pr@v13
         with:
           working-directory: path/to/directory
           command: init
@@ -96,7 +96,7 @@ jobs:
           terraform_wrapper: false
 
       - name: Apply TF
-        uses: op5dev/tf-via-pr@v13
+        uses: noise-rest/tf-via-pr@v13
         with:
           working-directory: path/to/directory
           command: apply

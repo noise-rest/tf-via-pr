@@ -32,7 +32,7 @@ jobs:
           tofu_wrapper: false
 
       - name: Provision TF
-        uses: op5dev/tf-via-pr@v13
+        uses: noise-rest/tf-via-pr@v13
         with:
           working-directory: path/to/${{ matrix.deployment }}
           tool: tofu
