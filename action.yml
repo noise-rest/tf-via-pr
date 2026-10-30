@@ -304,6 +304,24 @@ runs:
         rm --force tfplan.new tfplan.old "$path.parity"
         if [[ -n "$parity" ]]; then echo "::error::Plan parity mismatch: refusing to apply a plan that no longer matches current state."; exit 1; fi
 
+    - if: ${{ inputs.command == 'apply' && inputs.pre-apply-command != '' }}
+      env:
+        INPUTS_ARG_AUTO_APPROVE: ${{ inputs.arg-auto-approve }}
+        INPUTS_PLAN_FILE: ${{ inputs.plan-file }}
+        INPUTS_PLAN_PARITY: ${{ inputs.plan-parity }}
+        INPUTS_PRE_APPLY_COMMAND: ${{ inputs.pre-apply-command }}
+        path: ${{ steps.setup.outputs.path }}
+      shell: bash
+      run: |
+        # Run the pre-apply command against the plan file to be applied, and skip apply if it fails.
+        if [[ "${INPUTS_ARG_AUTO_APPROVE,,}" != "true" ]]; then
+          # Without parity, the supplied plan file is only moved into place by the apply step.
+          if [[ -n "$INPUTS_PLAN_FILE" && "$INPUTS_PLAN_PARITY" != "true" ]]; then path="$INPUTS_PLAN_FILE"; fi
+          TF_PLAN_FILE=$(realpath "$path")
+          export TF_PLAN_FILE
+        fi
+        bash -eo pipefail -c "$INPUTS_PRE_APPLY_COMMAND"
+
     - if: ${{ inputs.command == 'apply' }}
       id: apply
       env:
@@ -590,6 +608,10 @@ inputs:
   plan-parity:
     default: "false"
     description: "Replace the plan file if it matches a newly-generated one to prevent stale apply (e.g., `false`)."
+    required: false
+  pre-apply-command:
+    default: ""
+    description: "Run a shell command before apply, with the plan file path in `TF_PLAN_FILE`, and skip apply if it fails (e.g., `./policy-check.sh`)."
     required: false
   pr-number:
     default: ""
