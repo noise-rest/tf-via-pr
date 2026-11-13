@@ -114,7 +114,9 @@ runs:
         output parity "$(args destroy var-file var compact-warnings concise generate-config-out lock-timeout lock parallelism refresh-only refresh replace target)"
         output apply "$(args destroy "${apply_vars[@]}" backup compact-warnings concise lock-timeout lock parallelism refresh-only refresh replace state-out state target auto-approve)"
         output all "$(args workspace backend-config backend backup check compact-warnings concise destroy detailed-exitcode diff force-copy from-module generate-config-out get list lock-timeout lock lockfile migrate-state no-tests parallelism plugin-dir reconfigure recursive refresh-only refresh replace state-out state target test-directory upgrade var-file var write auto-approve)"
-        echo "path=${INPUTS_ARG_CHDIR:+$INPUTS_ARG_CHDIR/}tfplan" >> "$GITHUB_OUTPUT"
+        path="${INPUTS_ARG_CHDIR:+$INPUTS_ARG_CHDIR/}tfplan"
+        echo "path=$path" >> "$GITHUB_OUTPUT"
+        echo "plan_path=$(realpath --canonicalize-missing "$path")" >> "$GITHUB_OUTPUT"
 
         # Get PR number for different event triggers.
         if [[ -n "$INPUTS_PR_NUMBER" ]]; then
@@ -512,6 +514,9 @@ outputs:
   plan-id:
     description: "ID of the plan file artifact."
     value: ${{ steps.upload.outputs.artifact-id || steps.upload-v3.outputs.artifact-id }}
+  plan-path:
+    description: "Absolute path of the plan file."
+    value: ${{ steps.setup.outputs.plan_path }}
   plan-url:
     description: "URL of the plan file artifact."
     value: ${{ steps.upload.outputs.artifact-url || steps.upload-v3.outputs.artifact-url }}

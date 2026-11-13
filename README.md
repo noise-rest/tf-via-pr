@@ -277,6 +277,7 @@ Applicable only when `validate: true`.
 | Type     | Name           | Description                                   |
 | -------- | -------------- | --------------------------------------------- |
 | Artifact | `plan-id`      | ID of the plan file artifact.                 |
+| Artifact | `plan-path`    | Absolute path of the plan file.               |
 | Artifact | `plan-url`     | URL of the plan file artifact.                |
 | CLI      | `command`      | Input of the last TF command.                 |
 | CLI      | `diff`         | Diff of changes, if present (truncated).      |
