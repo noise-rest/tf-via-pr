@@ -617,7 +617,7 @@ inputs:
     required: false
   pre-apply-command:
     default: ""
-    description: "Run a shell command before apply, with the plan file path in `TF_PLAN_FILE`, and skip apply if it fails (e.g., `./policy-check.sh`)."
+    description: "Run shell command against the plan file to gate apply (e.g., `./policy-check.sh`)."
     required: false
   pr-number:
     default: ""

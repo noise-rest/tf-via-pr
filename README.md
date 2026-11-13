@@ -177,26 +177,27 @@ All supported CLI argument inputs are [listed below](#arguments) with accompanyi
 | Check    | `format`            | Check format of TF code.<br>Default: `false`                                                                                             |
 | Check    | `validate`          | Check validation of TF code.<br>Default: `false`                                                                                         |
 | Check    | `plan-parity`       | Replace plan file if it matches a newly-generated one to prevent stale apply.<sup>2</sup><br>Default: `false`                            |
-| Check    | `pre-apply-command` | Run a shell command before apply, with the plan file path in `TF_PLAN_FILE`, and skip apply if it fails.<br>Example: `./policy-check.sh`  |
-| Security | `plan-encrypt`      | Encrypt plan file artifact with the given input.<sup>3</sup><br>Example: `${{ secrets.PASSPHRASE }}`                                     |
+| Check    | `pre-apply-command` | Run shell command against plan file to gate apply.<sup>3</sup><br>Example: `./policy-check.sh`                                           |
+| Security | `plan-encrypt`      | Encrypt plan file artifact with the given input.<sup>4</sup><br>Example: `${{ secrets.PASSPHRASE }}`                                     |
 | Security | `preserve-plan`     | Preserve plan file "tfplan" in the given working directory after workflow execution.<br>Default: `false`                                 |
 | Security | `upload-plan`       | Upload plan file as GitHub workflow artifact.<br>Default: `true`                                                                         |
 | Security | `retention-days`    | Duration after which plan file artifact will expire in days.<br>Example: `90`                                                            |
 | Security | `token`             | Specify a GitHub token.<br>Default: `${{ github.token }}`                                                                                |
 | UI       | `expand-diff`       | Expand the collapsible diff section.<br>Default: `false`                                                                                 |
 | UI       | `expand-summary`    | Expand the collapsible summary section.<br>Default: `false`                                                                              |
-| UI       | `comment-pr`        | Add a PR comment: `always`, `on-diff`, or `never`.<sup>4</sup><br>Default: `always`                                                      |
-| UI       | `comment-method`    | PR comment by: `update` existing comment or `recreate` and delete previous one.<sup>5</sup><br>Default: `update`                         |
+| UI       | `comment-pr`        | Add a PR comment: `always`, `on-diff`, or `never`.<sup>5</sup><br>Default: `always`                                                      |
+| UI       | `comment-method`    | PR comment by: `update` existing comment or `recreate` and delete previous one.<sup>6</sup><br>Default: `update`                         |
 | UI       | `comment-pos-N`     | Markdown content to render at various positions in the PR comment.<br>Example: `> [!NOTE]\n> Reviewed by security.`                      |
-| UI       | `tag-actor`         | Tag the workflow triggering actor: `always`, `on-diff`, or `never`.<sup>4</sup><br>Default: `always`                                     |
-| UI       | `hide-args`         | Hide comma-separated list of CLI arguments from the command input.<sup>6</sup><br>Default: `detailed-exitcode,parallelism,lock,out,var=` |
-| UI       | `show-args`         | Show comma-separated list of CLI arguments in the command input.<sup>6</sup><br>Default: `workspace`                                     |
+| UI       | `tag-actor`         | Tag the workflow triggering actor: `always`, `on-diff`, or `never`.<sup>5</sup><br>Default: `always`                                     |
+| UI       | `hide-args`         | Hide comma-separated list of CLI arguments from the command input.<sup>7</sup><br>Default: `detailed-exitcode,parallelism,lock,out,var=` |
+| UI       | `show-args`         | Show comma-separated list of CLI arguments in the command input.<sup>7</sup><br>Default: `workspace`                                     |
 
 <br>
 
 1. Both `command: plan` and `command: apply` include: `init`, `fmt` (with `format: true`), `validate` (with `validate: true`), and `workspace` (with `arg-workspace`) commands rolled into it automatically.<br>
     To separately run checks and/or generate outputs only, `command: init` can be used.<br><br>
 1. Originally intended for `merge_group` event trigger, `plan-parity: true` input helps to prevent stale apply within a series of workflow runs when merging multiple PRs.<br><br>
+1. The `pre-apply-command` input runs with `bash -eo pipefail` from the working directory, with the plan file path in `$TF_PLAN_FILE` (unset with `arg-auto-approve: true`), and a non-zero exit skips apply. It shares the action's environment (including `GH_TOKEN` and any cloud credentials), so only pass trusted input.<br><br>
 1. The secret string input for `plan-encrypt` can be of any length, as long as it's consistent between encryption (plan) and decryption (apply).<br><br>
 1. The `on-diff` option is true when the exit code of the last TF command is non-zero (ensure `terraform_wrapper`/`tofu_wrapper` is set to `false`).<br><br>
 1. The default behavior of `comment-method` is to update the existing PR comment with the latest plan/apply output, making it easy to track changes over time through the comment's revision history.<br><br>
