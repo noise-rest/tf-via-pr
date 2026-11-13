@@ -304,6 +304,30 @@ runs:
         rm --force tfplan.new tfplan.old "$path.parity"
         if [[ -n "$parity" ]]; then echo "::error::Plan parity mismatch: refusing to apply a plan that no longer matches current state."; exit 1; fi
 
+    - if: ${{ inputs.command == 'apply' && inputs.pre-apply-command != '' }}
+      id: pre-apply
+      env:
+        INPUTS_ARG_AUTO_APPROVE: ${{ inputs.arg-auto-approve }}
+        INPUTS_ARG_CHDIR: ${{ inputs.arg-chdir || inputs.working-directory }}
+        INPUTS_PLAN_FILE: ${{ inputs.plan-file }}
+        INPUTS_PLAN_PARITY: ${{ inputs.plan-parity }}
+        INPUTS_PRE_APPLY_COMMAND: ${{ inputs.pre-apply-command }}
+        path: ${{ steps.setup.outputs.path }}
+      shell: bash
+      run: |
+        # Pre-apply command.
+        # Run against the plan file to be applied from the working directory, so apply is skipped on failure.
+        trap 'echo "exit_code=$?" >> "$GITHUB_OUTPUT"' EXIT
+        unset TF_PLAN_FILE
+        if [[ "${INPUTS_ARG_AUTO_APPROVE,,}" != "true" ]]; then
+          # Without parity, the supplied plan file is only moved into place by the apply step.
+          if [[ -n "$INPUTS_PLAN_FILE" && "$INPUTS_PLAN_PARITY" != "true" ]]; then path="$INPUTS_PLAN_FILE"; fi
+          TF_PLAN_FILE=$(realpath -e "$path")
+          export TF_PLAN_FILE
+        fi
+        printf '%s\n' "pre-apply-command" > tf.command.txt
+        (cd "${INPUTS_ARG_CHDIR:-.}" && bash -eo pipefail -c "$INPUTS_PRE_APPLY_COMMAND") 2>&1 | tee tf.console.txt
+
     - if: ${{ inputs.command == 'apply' }}
       id: apply
       env:
@@ -354,7 +378,7 @@ runs:
         INPUTS_SHOW_ARGS: ${{ inputs.show-args }}
         INPUTS_TAG_ACTOR: ${{ inputs.tag-actor }}
         SYNTAX: ${{ steps.format.outcome == 'failure' && 'diff' || 'hcl' }}
-        exitcode: ${{ steps.apply.outputs.exit_code || steps.plan.outputs.exit_code || steps.validate.outputs.exit_code || steps.initialize.outputs.exit_code || steps.format.outputs.exit_code }}
+        exitcode: ${{ steps.apply.outputs.exit_code || steps.pre-apply.outputs.exit_code || steps.plan.outputs.exit_code || steps.validate.outputs.exit_code || steps.initialize.outputs.exit_code || steps.format.outputs.exit_code }}
         path: ${{ steps.setup.outputs.path }}
       shell: bash
       run: |
@@ -502,7 +526,7 @@ outputs:
     value: ${{ steps.post.outputs.diff }}
   exitcode:
     description: "Exit code of the last TF command."
-    value: ${{ steps.apply.outputs.exit_code || steps.plan.outputs.exit_code || steps.validate.outputs.exit_code || steps.initialize.outputs.exit_code || steps.format.outputs.exit_code }}
+    value: ${{ steps.apply.outputs.exit_code || steps.pre-apply.outputs.exit_code || steps.plan.outputs.exit_code || steps.validate.outputs.exit_code || steps.initialize.outputs.exit_code || steps.format.outputs.exit_code }}
   identifier:
     description: "Unique name of the workflow run and artifact."
     value: ${{ steps.setup.outputs.name }}
@@ -590,6 +614,10 @@ inputs:
   plan-parity:
     default: "false"
     description: "Replace the plan file if it matches a newly-generated one to prevent stale apply (e.g., `false`)."
+    required: false
+  pre-apply-command:
+    default: ""
+    description: "Run shell command against the plan file to gate apply (e.g., `./policy-check.sh`)."
     required: false
   pr-number:
     default: ""
