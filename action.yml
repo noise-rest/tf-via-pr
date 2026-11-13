@@ -305,6 +305,7 @@ runs:
         if [[ -n "$parity" ]]; then echo "::error::Plan parity mismatch: refusing to apply a plan that no longer matches current state."; exit 1; fi
 
     - if: ${{ inputs.command == 'apply' && inputs.pre-apply-command != '' }}
+      id: pre-apply
       env:
         INPUTS_ARG_AUTO_APPROVE: ${{ inputs.arg-auto-approve }}
         INPUTS_ARG_CHDIR: ${{ inputs.arg-chdir || inputs.working-directory }}
@@ -316,6 +317,7 @@ runs:
       run: |
         # Pre-apply command.
         # Run against the plan file to be applied from the working directory, so apply is skipped on failure.
+        trap 'echo "exit_code=$?" >> "$GITHUB_OUTPUT"' EXIT
         unset TF_PLAN_FILE
         if [[ "${INPUTS_ARG_AUTO_APPROVE,,}" != "true" ]]; then
           # Without parity, the supplied plan file is only moved into place by the apply step.
@@ -376,7 +378,7 @@ runs:
         INPUTS_SHOW_ARGS: ${{ inputs.show-args }}
         INPUTS_TAG_ACTOR: ${{ inputs.tag-actor }}
         SYNTAX: ${{ steps.format.outcome == 'failure' && 'diff' || 'hcl' }}
-        exitcode: ${{ steps.apply.outputs.exit_code || steps.plan.outputs.exit_code || steps.validate.outputs.exit_code || steps.initialize.outputs.exit_code || steps.format.outputs.exit_code }}
+        exitcode: ${{ steps.apply.outputs.exit_code || steps.pre-apply.outputs.exit_code || steps.plan.outputs.exit_code || steps.validate.outputs.exit_code || steps.initialize.outputs.exit_code || steps.format.outputs.exit_code }}
         path: ${{ steps.setup.outputs.path }}
       shell: bash
       run: |
@@ -524,7 +526,7 @@ outputs:
     value: ${{ steps.post.outputs.diff }}
   exitcode:
     description: "Exit code of the last TF command."
-    value: ${{ steps.apply.outputs.exit_code || steps.plan.outputs.exit_code || steps.validate.outputs.exit_code || steps.initialize.outputs.exit_code || steps.format.outputs.exit_code }}
+    value: ${{ steps.apply.outputs.exit_code || steps.pre-apply.outputs.exit_code || steps.plan.outputs.exit_code || steps.validate.outputs.exit_code || steps.initialize.outputs.exit_code || steps.format.outputs.exit_code }}
   identifier:
     description: "Unique name of the workflow run and artifact."
     value: ${{ steps.setup.outputs.name }}
