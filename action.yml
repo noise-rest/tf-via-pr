@@ -307,19 +307,23 @@ runs:
     - if: ${{ inputs.command == 'apply' && inputs.pre-apply-command != '' }}
       env:
         INPUTS_ARG_AUTO_APPROVE: ${{ inputs.arg-auto-approve }}
+        INPUTS_ARG_CHDIR: ${{ inputs.arg-chdir || inputs.working-directory }}
         INPUTS_PLAN_FILE: ${{ inputs.plan-file }}
         INPUTS_PLAN_PARITY: ${{ inputs.plan-parity }}
         INPUTS_PRE_APPLY_COMMAND: ${{ inputs.pre-apply-command }}
         path: ${{ steps.setup.outputs.path }}
       shell: bash
       run: |
-        # Run the pre-apply command against the plan file to be applied, and skip apply if it fails.
+        # Pre-apply command.
+        # Run against the plan file to be applied from the working directory, so apply is skipped on failure.
+        unset TF_PLAN_FILE
         if [[ "${INPUTS_ARG_AUTO_APPROVE,,}" != "true" ]]; then
           # Without parity, the supplied plan file is only moved into place by the apply step.
           if [[ -n "$INPUTS_PLAN_FILE" && "$INPUTS_PLAN_PARITY" != "true" ]]; then path="$INPUTS_PLAN_FILE"; fi
-          TF_PLAN_FILE=$(realpath "$path")
+          TF_PLAN_FILE=$(realpath -e "$path")
           export TF_PLAN_FILE
         fi
+        cd "${INPUTS_ARG_CHDIR:-.}"
         bash -eo pipefail -c "$INPUTS_PRE_APPLY_COMMAND"
 
     - if: ${{ inputs.command == 'apply' }}
