@@ -161,7 +161,7 @@ runs:
         printf '%s\n' "$INPUTS_TOOL fmt" ${CHDIR:+" $CHDIR"} "${args[@]/#/ }" > tf.command.txt
         "$INPUTS_TOOL" ${CHDIR:+"$CHDIR"} fmt "${args[@]}" 2>&1 | tee tf.console.txt
 
-    - if: ${{ contains(fromJSON('["plan", "apply", "init"]'), inputs.command) }}
+    - if: ${{ contains(fromJSON('["plan", "fetch", "apply", "init"]'), inputs.command) }}
       id: initialize
       env:
         ARGS: ${{ steps.setup.outputs.init }}
@@ -175,7 +175,7 @@ runs:
         printf '%s\n' "$INPUTS_TOOL init" ${CHDIR:+" $CHDIR"} "${args[@]/#/ }" > tf.command.txt
         "$INPUTS_TOOL" ${CHDIR:+"$CHDIR"} init "${args[@]}" 2>&1 | tee tf.console.txt
 
-    - if: ${{ inputs.validate == 'true' && contains(fromJSON('["plan", "apply", "init"]'), inputs.command) }}
+    - if: ${{ inputs.validate == 'true' && contains(fromJSON('["plan", "fetch", "apply", "init"]'), inputs.command) }}
       id: validate
       env:
         ARGS: ${{ steps.setup.outputs.validate }}
@@ -207,7 +207,7 @@ runs:
         if [[ -n "$INPUTS_PLAN_FILE" ]]; then mv --force --verbose "$INPUTS_PLAN_FILE" "$PLAN_PATH" 2>/dev/null && exit 0; fi
         "$INPUTS_TOOL" ${CHDIR:+"$CHDIR"} plan "${args[@]}" 2>&1 | tee tf.console.txt
 
-    - if: ${{ inputs.command == 'apply' && inputs.arg-auto-approve != 'true' && inputs.plan-file == '' }}
+    - if: ${{ contains(fromJSON('["fetch", "apply"]'), inputs.command) && inputs.arg-auto-approve != 'true' && inputs.plan-file == '' }}
       id: download
       env:
         GH_COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.event.workflow_run.head_sha || github.sha }}
@@ -327,7 +327,7 @@ runs:
         printf '%s\n' "$INPUTS_TOOL apply" ${CHDIR:+" $CHDIR"} "${args[@]/#/ }" > tf.command.txt
         "$INPUTS_TOOL" ${CHDIR:+"$CHDIR"} apply "${args[@]}" 2>&1 | tee tf.console.txt
 
-    - if: ${{ !cancelled() && steps.setup.outcome == 'success' && contains(fromJSON('["plan", "apply", "init"]'), inputs.command) }}
+    - if: ${{ !cancelled() && steps.setup.outcome == 'success' && contains(fromJSON('["plan", "fetch", "apply", "init"]'), inputs.command) }}
       id: post
       env:
         ALL_ARGS: ${{ steps.setup.outputs.all }}
@@ -450,12 +450,12 @@ runs:
         echo "$body" >> "$GITHUB_STEP_SUMMARY"
         echo "comment_body<<EOCOMMENTTFVIAPR"$'\n'"$body"$'\n'EOCOMMENTTFVIAPR >> "$GITHUB_OUTPUT"
 
-        # Clean up files, optionally including the plan file.
-        if [[ "$INPUTS_PRESERVE_PLAN" != "true" ]]; then rm --force "$path"; fi
+        # Clean up files, optionally including the plan file, which "fetch" keeps for apply.
+        if [[ "$INPUTS_PRESERVE_PLAN" != "true" && "$INPUTS_COMMAND" != "fetch" ]]; then rm --force "$path"; fi
         rm --force tf.command.txt tf.console.txt tf.diff.txt
 
-        # Exit early if there is no PR to comment on.
-        if [[ "$GH_PR_NUMBER" -eq 0 || "$INPUTS_COMMENT_PR" == "never" ]]; then exit 0; fi
+        # Exit early if there is no PR to comment on, or with "fetch" to leave it for apply.
+        if [[ "$GH_PR_NUMBER" -eq 0 || "$INPUTS_COMMENT_PR" == "never" || "$INPUTS_COMMAND" == "fetch" ]]; then exit 0; fi
 
         # Find the latest bot comment with the same identifier.
         bot_comment=$(gh api "/repos/$GH_REPO/issues/$GH_PR_NUMBER/comments" --header "$GH_API" --method GET --paginate --raw-field "$GH_PER_PAGE" | jq --raw-output --arg identifier "$GH_IDENTIFIER_NAME" '.[] | select(.user.type == "Bot") | select(.body | contains($identifier)) | .id' | tail -n 1)
