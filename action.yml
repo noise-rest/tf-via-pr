@@ -325,8 +325,8 @@ runs:
           TF_PLAN_FILE=$(realpath -e "$path")
           export TF_PLAN_FILE
         fi
-        cd "${INPUTS_ARG_CHDIR:-.}"
-        bash -eo pipefail -c "$INPUTS_PRE_APPLY_COMMAND"
+        printf '%s\n' "pre-apply-command" > tf.command.txt
+        (cd "${INPUTS_ARG_CHDIR:-.}" && bash -eo pipefail -c "$INPUTS_PRE_APPLY_COMMAND") 2>&1 | tee tf.console.txt
 
     - if: ${{ inputs.command == 'apply' }}
       id: apply

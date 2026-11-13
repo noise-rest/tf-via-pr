@@ -197,7 +197,7 @@ All supported CLI argument inputs are [listed below](#arguments) with accompanyi
 1. Both `command: plan` and `command: apply` include: `init`, `fmt` (with `format: true`), `validate` (with `validate: true`), and `workspace` (with `arg-workspace`) commands rolled into it automatically.<br>
     To separately run checks and/or generate outputs only, `command: init` can be used.<br><br>
 1. Originally intended for `merge_group` event trigger, `plan-parity: true` input helps to prevent stale apply within a series of workflow runs when merging multiple PRs.<br><br>
-1. The `pre-apply-command` input runs with `bash -eo pipefail` from the working directory, with the plan file path in `$TF_PLAN_FILE` (unset with `arg-auto-approve: true`), and a non-zero exit skips apply. It shares the action's environment (including `GH_TOKEN` and any cloud credentials), so only pass trusted input.<br><br>
+1. The `pre-apply-command` input runs with `bash -eo pipefail` from the working directory, with the plan file path in `$TF_PLAN_FILE` (unset with `arg-auto-approve: true`), and a non-zero exit skips apply with its output in the PR comment. It shares the action's environment (including `GH_TOKEN` and any cloud credentials), so only pass trusted input.<br><br>
 1. The secret string input for `plan-encrypt` can be of any length, as long as it's consistent between encryption (plan) and decryption (apply).<br><br>
 1. The `on-diff` option is true when the exit code of the last TF command is non-zero (ensure `terraform_wrapper`/`tofu_wrapper` is set to `false`).<br><br>
 1. The default behavior of `comment-method` is to update the existing PR comment with the latest plan/apply output, making it easy to track changes over time through the comment's revision history.<br><br>
