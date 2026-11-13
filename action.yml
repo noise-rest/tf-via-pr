@@ -292,7 +292,7 @@ runs:
       run: |
         # TF plan parity.
         # Generate a new plan file, then compare its normalized resource changes with the previous one.
-        if [[ -n "$INPUTS_PLAN_FILE" ]]; then mv --force --verbose "$INPUTS_PLAN_FILE" "$path" 2>/dev/null; fi
+        if [[ -n "$INPUTS_PLAN_FILE" && ! "$INPUTS_PLAN_FILE" -ef "$path" ]]; then mv --force --verbose "$INPUTS_PLAN_FILE" "$path" 2>/dev/null; fi
         mapfile -t args < <(printf '%s' "$ARGS")
         "$INPUTS_TOOL" ${CHDIR:+"$CHDIR"} plan "${args[@]}" -out=tfplan.parity
         filter='[(.resource_changes? // [])[] | select(.change.actions != ["no-op"])]'
@@ -321,7 +321,7 @@ runs:
         mapfile -t args < <(printf '%s' "$ARGS")
         # Without auto-approve, apply the plan file.
         if [[ "${INPUTS_ARG_AUTO_APPROVE,,}" != "true" ]]; then
-          if [[ -n "$INPUTS_PLAN_FILE" && "$INPUTS_PLAN_PARITY" != "true" ]]; then mv --force --verbose "$INPUTS_PLAN_FILE" "$path" 2>/dev/null; fi
+          if [[ -n "$INPUTS_PLAN_FILE" && ! "$INPUTS_PLAN_FILE" -ef "$path" && "$INPUTS_PLAN_PARITY" != "true" ]]; then mv --force --verbose "$INPUTS_PLAN_FILE" "$path" 2>/dev/null; fi
           args+=(tfplan)
         fi
         printf '%s\n' "$INPUTS_TOOL apply" ${CHDIR:+" $CHDIR"} "${args[@]/#/ }" > tf.command.txt
