@@ -529,7 +529,7 @@ inputs:
   # Action parameters.
   command:
     default: ""
-    description: "Command to run between: `plan` or `apply`. Optionally `init` for checks and outputs only (e.g., `plan`)."
+    description: "Command to run between: `plan`, `fetch`, or `apply`. Optionally `init` for checks and outputs only (e.g., `plan`)."
     required: false
   comment-method:
     default: "update"
