@@ -170,7 +170,7 @@ All supported CLI argument inputs are [listed below](#arguments) with accompanyi
 | Type     | Name                | Description                                                                                                                              |
 | -------- | ------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | CLI      | `working-directory` | Specify the working directory of TF code, alias of `arg-chdir`.<br>Example: `path/to/directory`                                          |
-| CLI      | `command`           | Command to run between: `plan` or `apply`.<sup>1</sup><br>Example: `plan`                                                                |
+| CLI      | `command`           | Command to run between: `plan`, `fetch`, or `apply`.<sup>1</sup><br>Example: `plan`                                                      |
 | CLI      | `tool`              | Provisioning tool to use between: `terraform` or `tofu`.<br>Default: `terraform`                                                         |
 | CLI      | `plan-file`         | Supply existing plan file path instead of the auto-generated one.<br>Example: `path/to/file.tfplan`                                      |
 | CLI      | `pr-number`         | Specify PR number in case of unsupported workflow trigger.<br>Example: `123`                                                             |
@@ -194,7 +194,8 @@ All supported CLI argument inputs are [listed below](#arguments) with accompanyi
 <br>
 
 1. Both `command: plan` and `command: apply` include: `init`, `fmt` (with `format: true`), `validate` (with `validate: true`), and `workspace` (with `arg-workspace`) commands rolled into it automatically.<br>
-    To separately run checks and/or generate outputs only, `command: init` can be used.<br><br>
+    To separately run checks and/or generate outputs only, `command: init` can be used.<br>
+    To inspect the plan file before apply (e.g., policy checks), `command: fetch` downloads, decrypts, and checks `plan-parity` without applying, then `command: apply` with `plan-file` resumes.<br><br>
 1. Originally intended for `merge_group` event trigger, `plan-parity: true` input helps to prevent stale apply within a series of workflow runs when merging multiple PRs.<br><br>
 1. The secret string input for `plan-encrypt` can be of any length, as long as it's consistent between encryption (plan) and decryption (apply).<br><br>
 1. The `on-diff` option is true when the exit code of the last TF command is non-zero (ensure `terraform_wrapper`/`tofu_wrapper` is set to `false`).<br><br>
@@ -276,6 +277,7 @@ Applicable only when `validate: true`.
 | Type     | Name           | Description                                   |
 | -------- | -------------- | --------------------------------------------- |
 | Artifact | `plan-id`      | ID of the plan file artifact.                 |
+| Artifact | `plan-path`    | Absolute path of the plan file.               |
 | Artifact | `plan-url`     | URL of the plan file artifact.                |
 | CLI      | `command`      | Input of the last TF command.                 |
 | CLI      | `diff`         | Diff of changes, if present (truncated).      |

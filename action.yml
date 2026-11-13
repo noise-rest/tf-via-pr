@@ -114,7 +114,9 @@ runs:
         output parity "$(args destroy var-file var compact-warnings concise generate-config-out lock-timeout lock parallelism refresh-only refresh replace target)"
         output apply "$(args destroy "${apply_vars[@]}" backup compact-warnings concise lock-timeout lock parallelism refresh-only refresh replace state-out state target auto-approve)"
         output all "$(args workspace backend-config backend backup check compact-warnings concise destroy detailed-exitcode diff force-copy from-module generate-config-out get list lock-timeout lock lockfile migrate-state no-tests parallelism plugin-dir reconfigure recursive refresh-only refresh replace state-out state target test-directory upgrade var-file var write auto-approve)"
-        echo "path=${INPUTS_ARG_CHDIR:+$INPUTS_ARG_CHDIR/}tfplan" >> "$GITHUB_OUTPUT"
+        path="${INPUTS_ARG_CHDIR:+$INPUTS_ARG_CHDIR/}tfplan"
+        echo "path=$path" >> "$GITHUB_OUTPUT"
+        echo "plan_path=$(realpath --canonicalize-missing "$path")" >> "$GITHUB_OUTPUT"
 
         # Get PR number for different event triggers.
         if [[ -n "$INPUTS_PR_NUMBER" ]]; then
@@ -161,7 +163,7 @@ runs:
         printf '%s\n' "$INPUTS_TOOL fmt" ${CHDIR:+" $CHDIR"} "${args[@]/#/ }" > tf.command.txt
         "$INPUTS_TOOL" ${CHDIR:+"$CHDIR"} fmt "${args[@]}" 2>&1 | tee tf.console.txt
 
-    - if: ${{ contains(fromJSON('["plan", "apply", "init"]'), inputs.command) }}
+    - if: ${{ contains(fromJSON('["plan", "fetch", "apply", "init"]'), inputs.command) }}
       id: initialize
       env:
         ARGS: ${{ steps.setup.outputs.init }}
@@ -175,7 +177,7 @@ runs:
         printf '%s\n' "$INPUTS_TOOL init" ${CHDIR:+" $CHDIR"} "${args[@]/#/ }" > tf.command.txt
         "$INPUTS_TOOL" ${CHDIR:+"$CHDIR"} init "${args[@]}" 2>&1 | tee tf.console.txt
 
-    - if: ${{ inputs.validate == 'true' && contains(fromJSON('["plan", "apply", "init"]'), inputs.command) }}
+    - if: ${{ inputs.validate == 'true' && contains(fromJSON('["plan", "fetch", "apply", "init"]'), inputs.command) }}
       id: validate
       env:
         ARGS: ${{ steps.setup.outputs.validate }}
@@ -207,7 +209,7 @@ runs:
         if [[ -n "$INPUTS_PLAN_FILE" ]]; then mv --force --verbose "$INPUTS_PLAN_FILE" "$PLAN_PATH" 2>/dev/null && exit 0; fi
         "$INPUTS_TOOL" ${CHDIR:+"$CHDIR"} plan "${args[@]}" 2>&1 | tee tf.console.txt
 
-    - if: ${{ inputs.command == 'apply' && inputs.arg-auto-approve != 'true' && inputs.plan-file == '' }}
+    - if: ${{ contains(fromJSON('["fetch", "apply"]'), inputs.command) && inputs.arg-auto-approve != 'true' && inputs.plan-file == '' }}
       id: download
       env:
         GH_COMMIT_SHA: ${{ github.event.pull_request.head.sha || github.event.workflow_run.head_sha || github.sha }}
@@ -292,7 +294,7 @@ runs:
       run: |
         # TF plan parity.
         # Generate a new plan file, then compare its normalized resource changes with the previous one.
-        if [[ -n "$INPUTS_PLAN_FILE" ]]; then mv --force --verbose "$INPUTS_PLAN_FILE" "$path" 2>/dev/null; fi
+        if [[ -n "$INPUTS_PLAN_FILE" && ! "$INPUTS_PLAN_FILE" -ef "$path" ]]; then mv --force --verbose "$INPUTS_PLAN_FILE" "$path" 2>/dev/null; fi
         mapfile -t args < <(printf '%s' "$ARGS")
         "$INPUTS_TOOL" ${CHDIR:+"$CHDIR"} plan "${args[@]}" -out=tfplan.parity
         filter='[(.resource_changes? // [])[] | select(.change.actions != ["no-op"])]'
@@ -321,13 +323,13 @@ runs:
         mapfile -t args < <(printf '%s' "$ARGS")
         # Without auto-approve, apply the plan file.
         if [[ "${INPUTS_ARG_AUTO_APPROVE,,}" != "true" ]]; then
-          if [[ -n "$INPUTS_PLAN_FILE" && "$INPUTS_PLAN_PARITY" != "true" ]]; then mv --force --verbose "$INPUTS_PLAN_FILE" "$path" 2>/dev/null; fi
+          if [[ -n "$INPUTS_PLAN_FILE" && ! "$INPUTS_PLAN_FILE" -ef "$path" && "$INPUTS_PLAN_PARITY" != "true" ]]; then mv --force --verbose "$INPUTS_PLAN_FILE" "$path" 2>/dev/null; fi
           args+=(tfplan)
         fi
         printf '%s\n' "$INPUTS_TOOL apply" ${CHDIR:+" $CHDIR"} "${args[@]/#/ }" > tf.command.txt
         "$INPUTS_TOOL" ${CHDIR:+"$CHDIR"} apply "${args[@]}" 2>&1 | tee tf.console.txt
 
-    - if: ${{ !cancelled() && steps.setup.outcome == 'success' && contains(fromJSON('["plan", "apply", "init"]'), inputs.command) }}
+    - if: ${{ !cancelled() && steps.setup.outcome == 'success' && contains(fromJSON('["plan", "fetch", "apply", "init"]'), inputs.command) }}
       id: post
       env:
         ALL_ARGS: ${{ steps.setup.outputs.all }}
@@ -450,12 +452,12 @@ runs:
         echo "$body" >> "$GITHUB_STEP_SUMMARY"
         echo "comment_body<<EOCOMMENTTFVIAPR"$'\n'"$body"$'\n'EOCOMMENTTFVIAPR >> "$GITHUB_OUTPUT"
 
-        # Clean up files, optionally including the plan file.
-        if [[ "$INPUTS_PRESERVE_PLAN" != "true" ]]; then rm --force "$path"; fi
+        # Clean up files, optionally including the plan file, which "fetch" keeps for apply.
+        if [[ "$INPUTS_PRESERVE_PLAN" != "true" && "$INPUTS_COMMAND" != "fetch" ]]; then rm --force "$path"; fi
         rm --force tf.command.txt tf.console.txt tf.diff.txt
 
-        # Exit early if there is no PR to comment on.
-        if [[ "$GH_PR_NUMBER" -eq 0 || "$INPUTS_COMMENT_PR" == "never" ]]; then exit 0; fi
+        # Exit early if there is no PR to comment on, or with "fetch" to leave it for apply.
+        if [[ "$GH_PR_NUMBER" -eq 0 || "$INPUTS_COMMENT_PR" == "never" || "$INPUTS_COMMAND" == "fetch" ]]; then exit 0; fi
 
         # Find the latest bot comment with the same identifier.
         bot_comment=$(gh api "/repos/$GH_REPO/issues/$GH_PR_NUMBER/comments" --header "$GH_API" --method GET --paginate --raw-field "$GH_PER_PAGE" | jq --raw-output --arg identifier "$GH_IDENTIFIER_NAME" '.[] | select(.user.type == "Bot") | select(.body | contains($identifier)) | .id' | tail -n 1)
@@ -512,6 +514,9 @@ outputs:
   plan-id:
     description: "ID of the plan file artifact."
     value: ${{ steps.upload.outputs.artifact-id || steps.upload-v3.outputs.artifact-id }}
+  plan-path:
+    description: "Absolute path of the plan file."
+    value: ${{ steps.setup.outputs.plan_path }}
   plan-url:
     description: "URL of the plan file artifact."
     value: ${{ steps.upload.outputs.artifact-url || steps.upload-v3.outputs.artifact-url }}
@@ -529,7 +534,7 @@ inputs:
   # Action parameters.
   command:
     default: ""
-    description: "Command to run between: `plan` or `apply`. Optionally `init` for checks and outputs only (e.g., `plan`)."
+    description: "Command to run between: `plan`, `fetch`, or `apply`. Optionally `init` for checks and outputs only (e.g., `plan`)."
     required: false
   comment-method:
     default: "update"
